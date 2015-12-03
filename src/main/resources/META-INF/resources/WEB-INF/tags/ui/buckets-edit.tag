@@ -7,7 +7,73 @@
 <%@ attribute name="definition" required="true" type="com.indeed.proctor.common.model.TestDefinition" %>
 <style type="text/css">
     .payloads-hidden .js-bucket-payload {display:none}
+
+    /*
+    @keyframes darken {
+      from {
+        background-color: rgba(0, 0, 0, 0);
+      }
+      to {
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+    }
+
+    @keyframes grow {
+      from {
+        height: 100px;
+        width: 562px;
+        top: 40%;
+        left: 35%;
+      }
+      to {
+        height: 90%;
+        width: 90%;
+        top: 5%;
+        left: 5%;
+      }
+    }
+    */
+
+    .ace_editor {
+        font-size: 14px;
+        height: 100px;
+        /*width: 562px;*/
+        margin-bottom: 12px;
+    }
+
+    .ace-editor-parent {
+        background-color: rgba(0, 0, 0, 0);
+    }
+
+    .modal {
+        /* TODO - Add vendor prefixes */
+        /*
+        position: fixed;
+        height: 100%;
+        width: 100%;
+        z-index: 10000;
+        top: 0px;
+        left: 0px;
+        background-color: rgba(0, 0, 0, 0.5);
+  
+        transition: opacity 5s;
+        */
+        /*width: 100% !important;*/
+        /*animation: darken 5s forwards;*/
+    }
+
+    .modal > .ace_editor {
+        height: 90%  !important;
+        margin-bottom: 0px;
+        width: 90% !important;
+        top: 5% !important;
+        left: 5% !important;
+        /*animation: grow 5s forwards;*/
+
+        transition: 5s;
+    }
 </style>
+
 <c:set var="hasPayload" value="${!empty definition.buckets && !empty definition.buckets[0].payload}"/>
 <%-- if .payload is null, payloadType will be set to "none" --%>
 <c:set var="payloadType" value="${proctor:printPayloadType(definition.buckets[0].payload)}"/>
@@ -44,6 +110,31 @@
                             <ui:grid-columns width="one"> </ui:grid-columns>
                             <ui:grid-columns width="eleven"><textarea rows="1" cols="11" class="js-bucket-payload json" name="buckets[${status.index}].payload.${payloadType}" <c:if test="${!hasPayload}">disabled</c:if> data-json-type="raw"><c:if test="${hasPayload}">${fn:escapeXml(proctor:prettyPrintJSONPayloadContents(bucket.payload))}</c:if></textarea></ui:grid-columns>
                         </ui:grid-row>
+                        <ui:grid-row>
+                            <ui:grid-columns width="one"> </ui:grid-columns>
+                            <ui:grid-columns width="eleven">
+                                <h6>Server-Side Code</h6>
+                            </ui:grid-columns>
+                        </ui:grid-row>
+                        <ui:grid-row>
+                            <ui:grid-columns width="one"> </ui:grid-columns>
+                            <ui:grid-columns width="eleven">
+                                <div class="js-bucket-client-code"></div>
+                            </ui:grid-columns>
+                        </ui:grid-row>
+                        <ui:grid-row>
+                            <ui:grid-columns width="one"> </ui:grid-columns>
+                            <ui:grid-columns width="eleven">
+                                <h6>Client-Side Code</h6>
+                            </ui:grid-columns>
+                        </ui:grid-row>
+                        <ui:grid-row>
+                            <ui:grid-columns width="one"> </ui:grid-columns>
+                            <ui:grid-columns width="eleven">
+                                <div class="js-bucket-server-code"></div>
+                            </ui:grid-columns>
+                        </ui:grid-row>
+
                     </ui:grid-columns>
                     <ui:grid-columns width="two"><a class="js-delete-bucket tiny button secondary radius" href="#">Delete</a></ui:grid-columns>
                 </ui:grid-row>
@@ -63,6 +154,31 @@
                     <textarea rows="1" cols="9" class="js-bucket-payload newbucket" placeholder="Payload" name="add-bucket.payload" data-json-type="raw"></textarea>
                 </ui:grid-columns>
             </ui:grid-row>
+            <ui:grid-row>
+                <ui:grid-columns width="one"> </ui:grid-columns>
+                <ui:grid-columns width="eleven">
+                    <h6>Server-Side Code</h6>
+                </ui:grid-columns>
+            </ui:grid-row>
+            <ui:grid-row>
+                <ui:grid-columns width="one"> </ui:grid-columns>
+                <ui:grid-columns width="eleven">
+                    <div class="js-bucket-client-code"></div>
+                </ui:grid-columns>
+            </ui:grid-row>
+            <ui:grid-row>
+                <ui:grid-columns width="one"> </ui:grid-columns>
+                <ui:grid-columns width="eleven">
+                    <h6>Client-Side Code</h6>
+                </ui:grid-columns>
+            </ui:grid-row>
+            <ui:grid-row>
+                <ui:grid-columns width="one"> </ui:grid-columns>
+                <ui:grid-columns width="eleven">
+                    <div class="js-bucket-server-code"></div>
+                </ui:grid-columns>
+            </ui:grid-row>
+
             </ui:grid-columns>
             <ui:grid-columns width="two"><a class="js-add-bucket small button secondary radius" href="#">Add Bucket</a></ui:grid-columns>
         </ui:grid-row>
@@ -70,3 +186,5 @@
 
     </div>
 </div>
+
+<script src="https://ace.c9.io/build/src/ace.js" type="text/javascript" charset="utf-8"></script>

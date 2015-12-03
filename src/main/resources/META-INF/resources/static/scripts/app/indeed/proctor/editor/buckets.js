@@ -8,6 +8,154 @@ goog.require('goog.math');
 goog.require('goog.string');
 goog.require('indeed.proctor.forms');
 
+var ACE_EDITOR_MODAL_CLASS = 'modal',
+    APPROXIMIZELY_PAYLOAD_TYPE = 'stringArray',
+    ESC_KEY = 27;
+
+// TODO - Remove
+window.aceeditors = [];
+
+function getDistanceFromTop(element) {
+    var yPos = 0;
+
+    while(element) {
+        yPos += (element.offsetTop);
+        element = element.offsetParent;
+    }
+
+    return yPos;
+}
+
+function getDistanceFromLeft(element) {
+    var xPos = 0;
+
+    while(element) {
+        xPos += (element.offsetLeft);
+        element = element.offsetParent;
+    }
+
+    return xPos;
+}
+
+function addClass(elem, classToAdd) {
+  // Remove potential duplicates
+  removeClass(elem, classToAdd);
+
+  elem.className = elem.className + ' ' + classToAdd;
+}
+
+function prepForAnimation(elem) {
+  var doc = document.documentElement;
+  var scrolledRight = (window.pageXOffset || doc.scrollLeft) - (doc.clientLeft || 0);
+  var scrolledDown = (window.pageYOffset || doc.scrollTop)  - (doc.clientTop || 0);
+
+  var height = elem.clientHeight;
+  var width = elem.clientWidth;
+
+  elem.style.position = 'fixed';
+  elem.style.top = getDistanceFromTop(elem) - scrolledDown + 'px';
+  elem.style.left = getDistanceFromLeft(elem) - scrolledRight + 'px';
+  elem.style.width = width + 'px';
+  elem.style.height = height + 'px';
+  console.log(width);
+  console.log(elem);
+}
+
+function undoAnimation(elem) {
+  elem.style.position = '';
+  elem.style.top = '';
+  elem.style.left = '';
+  elem.style.width = '';
+  elem.style.height = '';
+}
+
+function removeClass(elem, classToRemove) {
+  elem.className = elem.className.split(/\s+/).filter(function(className) {
+    return className !== classToRemove;
+  }).join(' ');
+}
+
+function setUpEditor(elem, payloadObj, payloadObjKey, el_payload) {
+
+  // TODO - I think this should be removed
+  var initialValue;
+
+  /*
+  elem.style.fontSize = "14px";
+  elem.style.height = "100px";
+  elem.style.marginBottom = "12px";
+  */
+  var editor = ace.edit(elem);
+  var editorParent = editor.container.parentElement;
+  editor.setTheme("ace/theme/chrome");
+  editor.getSession().setMode("ace/mode/javascript");
+  editor.getSession().setUseWrapMode(true);
+
+  editor.on('focus', function(e, editor) {
+    console.log('focus called');
+    prepForAnimation(editor.container);
+    removeClass(editorParent, 'eleven');
+    addClass(editorParent, ACE_EDITOR_MODAL_CLASS);
+    editor.resize();
+
+    console.log(e);
+  });
+
+  editor.on('blur', function() {
+    console.log('blur called');
+    undoAnimation(editor.container);
+    removeClass(editorParent, ACE_EDITOR_MODAL_CLASS);
+    addClass(editorParent, 'eleven');
+    editor.resize();
+  });
+
+  /*
+  editor.container.addEventListener('click', function(e) {
+    console.log('event stopped');
+    //e.stopPropagation();
+  });
+
+  editorParent.addEventListener('click', function() {
+    console.log('parent clicked');
+    removeClass(editorParent, ACE_EDITOR_MODAL_CLASS);
+    editor.resize();
+  });
+  */
+  editorParent.addEventListener('keyup', function(e) {
+    console.log('button clicked');
+    if (e.keyCode === ESC_KEY) {
+      console.log('ESC clicked');
+      removeClass(editorParent, ACE_EDITOR_MODAL_CLASS);
+
+      // Blur immediately so if the user clicks the editor again before causing a blur, the modal will still be activated
+      editor.blur();
+    }
+  });
+
+  addClass(editorParent, 'ace-editor-parent');
+
+  // TODO - Remove
+  aceeditors.push(editor);
+
+  if (payloadObj[payloadObjKey]) {
+    editor.setValue(payloadObj[payloadObjKey], 1);
+  }
+
+  editor.getSession().on("change", function() {
+
+    var payload;
+    payloadObj[payloadObjKey] = editor.getValue();
+
+    // Check if payload will be empty
+    if (!payloadObj.client && !payloadObj.server) {
+      payload = '';
+    } else {
+      payload = [payloadObj.client, payloadObj.server];
+    }
+
+    el_payload.value = payload ? JSON.stringify(payload) : payload;
+  });
+}
 
 
 /**
@@ -33,6 +181,11 @@ indeed.proctor.editor.BucketsEditor =
   /** @type {Array.<{name:string, value:number, description:string, payload:Object}>} Array of
    * bucket values */
   this.buckets = goog.array.clone(definition['buckets']);
+
+  console.log('BucketsEditor called');
+  console.log(this.buckets);
+  console.log('container');
+  console.log(container);
 
   this.bucketsRemoved = false;
   this.bucketsAdded = false;
@@ -70,14 +223,48 @@ indeed.proctor.editor.BucketsEditor.prototype.bind_ = function() {
       el_description = this.dom_.getElementByClass('js-bucket-description',
                                                    this.addBucketRow),
       el_payload = this.dom_.getElementByClass('js-bucket-payload',
+                                             this.addBucketRow),
+
+      // FIXME - Server side is first and client side is second
+      el_client_code = this.dom_.getElementByClass('js-bucket-client-code',
+                                             this.addBucketRow),
+      el_server_code = this.dom_.getElementByClass('js-bucket-server-code',
                                              this.addBucketRow);
+
+    console.log('bind_ called');
+    console.log(el_value);
+    console.log(el_name);
+    console.log(el_description);
+    console.log(el_payload);
+
+    var payloadObj = {
+      client: '',
+      server: '' 
+    };
+
+    console.log('=== payload type in bind_: ' + this.payloadType + ' ===');
+    if (this.payloadType === APPROXIMIZELY_PAYLOAD_TYPE) {
+      setUpEditor(el_client_code, payloadObj, 'client', el_payload);
+      setUpEditor(el_server_code, payloadObj, 'server', el_payload);
+    }
+
     var onChange = function() {
     var value = +goog.dom.forms.getValue(el_value);
+
+    // TODO - Add el_client_code to this later
     this.validateBucket_(value, goog.dom.forms.getValue(el_name),
                          goog.dom.forms.getValue(el_description),
                          goog.dom.forms.getValue(el_payload), this.payloadType, -1,
                          el_value, el_name, el_description, el_payload);
+
+    console.log('onChange called');
+    console.log(el_value);
+    console.log(el_name);
+    console.log(el_description);
+    console.log(el_payload);
+    console.log(el_client_code);
   }
+
   this.handler_.listen(el_value, goog.events.EventType.CHANGE, onChange);
   this.handler_.listen(el_name, goog.events.EventType.CHANGE, onChange);
   this.handler_.listen(el_description, goog.events.EventType.CHANGE, onChange);
@@ -150,6 +337,7 @@ indeed.proctor.editor.BucketsEditor.prototype.getBucketJsonByRow_ =
  */
 indeed.proctor.editor.BucketsEditor.prototype.addBucket =
     function(value, name, description, payload) {
+      console.log('addBucket called');
   var newIndex = this.buckets.length;
   var el_value = this.dom_.getElementByClass('js-bucket-value',
                                              this.addBucketRow),
@@ -209,6 +397,8 @@ indeed.proctor.editor.BucketsEditor.prototype.addBucket =
 indeed.proctor.editor.BucketsEditor.prototype.validateBucket_ =
     function(value, name, description, payload, payload_type, bucketIndex,
              el_value, el_name, el_description, el_payload) {
+
+      console.log('validateBucket_ called');
   indeed.foundation.forms.removeError(el_value);
   indeed.foundation.forms.removeError(el_name);
   indeed.foundation.forms.removeError(el_description);
@@ -276,6 +466,8 @@ indeed.proctor.editor.BucketsEditor.prototype.validBucketNameCharacters_ =
  */
 indeed.proctor.editor.BucketsEditor.prototype.validPayloadStringForType_ =
     function(str, payloadType, el_payload) {
+
+      console.log('validPayloadStringForType_ called');
         var value = null;
         try {
             value = goog.json.parse(str);
@@ -581,6 +773,7 @@ indeed.proctor.editor.BucketsEditor.prototype.buildBucketDelete_ =
  */
 indeed.proctor.editor.BucketsEditor.prototype.bindRow_ =
     function(row, bucketIndex) {
+      console.log('bindRow_ called');
   var inputs = goog.array.concat(
           goog.array.toArray(this.dom_.getElementsByTagNameAndClass(goog.dom.TagName.INPUT, null, row)),
           goog.array.toArray(this.dom_.getElementsByTagNameAndClass(goog.dom.TagName.TEXTAREA, null, row))
@@ -596,6 +789,53 @@ indeed.proctor.editor.BucketsEditor.prototype.bindRow_ =
     this.handler_.listen(deleteBucket[i], goog.events.EventType.CLICK,
                          goog.partial(this.onDeleteBucket_, bucketIndex, row));
   }
+
+  var payloadObj = {
+    client: '',
+    server: '' 
+  };
+
+  var el_client_code = this.dom_.getElementsByTagNameAndClass(null, 'js-bucket-client-code', row)[0];
+  var el_server_code = this.dom_.getElementsByTagNameAndClass(null, 'js-bucket-server-code', row)[0];
+  var el_payload = this.dom_.getElementByClass('js-bucket-payload', row);
+
+  console.log('Heres el_client_code');
+  console.log(el_client_code);
+  console.log(el_server_code);
+  console.log(el_payload);
+
+
+  function initializePayload(payloadObj, payloadObjKey, index) {
+    // console.log('ENTERING initializePayload');
+    var initialValue;
+
+    try {
+      // console.log('payload value: ' + el_payload.value);
+      initialValue = JSON.parse(el_payload.value);
+      // console.log('initialValue: ' + initialValue);
+      // console.log('typeof initialValue: ' + (typeof initialValue));
+      if (initialValue instanceof Array && initialValue[index]) {
+        // console.log('initialValue[' + index + ']: ' + initialValue[index]);
+        payloadObj[payloadObjKey] = initialValue[index];
+      }
+    } catch(e) {
+      // console.log('error thrown');
+    }
+    // console.log('EXITING initializePayload');
+  }
+
+  console.log('=== payload type in bindRow_: ' + this.payloadType + ' ===');
+  if (this.payloadType === APPROXIMIZELY_PAYLOAD_TYPE) {
+    initializePayload(payloadObj, 'client', 0);
+    initializePayload(payloadObj, 'server', 1);
+
+
+    // console.log('======= payloadObj ========');
+    // console.log(payloadObj);
+
+    setUpEditor(el_client_code, payloadObj, 'client', el_payload);
+    setUpEditor(el_server_code, payloadObj, 'server', el_payload);
+  }
 };
 
 
@@ -605,6 +845,7 @@ indeed.proctor.editor.BucketsEditor.prototype.bindRow_ =
  * container.
  */
 indeed.proctor.editor.BucketsEditor.prototype.render_ = function() {
+  console.log('render_ called');
   var df = goog.dom.createDom(goog.dom.TagName.DIV, {'class': 'js-buckets'});
   for (var i = 0; i < this.buckets.length; i++) {
     var bucket = this.buckets[i];
@@ -672,6 +913,7 @@ indeed.proctor.editor.BucketsEditor.prototype.onDeleteBucket_ =
  */
 indeed.proctor.editor.BucketsEditor.prototype.onBucketChange_ =
     function(bucketIndex, row, ev) {
+      console.log('onBucketChange_ called');
   var el_value = this.dom_.getElementByClass('js-bucket-value', row),
       el_name = this.dom_.getElementByClass('js-bucket-name', row),
       el_description = this.dom_.getElementByClass('js-bucket-description',
@@ -704,6 +946,7 @@ indeed.proctor.editor.BucketsEditor.prototype.onBucketChange_ =
  * widget is valid. Checks at least one bucket, and no duplicate buckets.
  */
 indeed.proctor.editor.BucketsEditor.prototype.validate = function() {
+  console.log('validate called');
   if (this.buckets.length == 0) {
     return false;
   }
@@ -740,7 +983,11 @@ indeed.proctor.editor.BucketsEditor.prototype.validate = function() {
  */
 indeed.proctor.editor.BucketsEditor.prototype.onPayloadTypeChange_ =
   function(ev) {
+    console.log('onPayloadTypeChange_ called');
     this.payloadType = ev.currentTarget.value;
+
+    console.log('payload type: ' + this.payloadType);
+
     goog.dom.classes.enable(this.container, 'payloads-hidden', ('none' == this.payloadType));
     // When we change the payload type, we have to go though all the current payload fields,
     // changing the name to be appropriate so the payload will be generated with the right type,

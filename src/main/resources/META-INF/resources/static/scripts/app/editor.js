@@ -48,6 +48,8 @@ indeed.proctor.app.editor.start =
     indeed.expandcollapse.ExpandCollapse.detect(document.body);
     indeed.proctor.editor.CleanWorkspace.detect(document.body);
 
+    console.log('editor start');
+    console.log(definitions);
   });
 };
 
@@ -184,6 +186,9 @@ indeed.proctor.app.editor.DefinitionEditor.prototype.save_ = function() {
       );
 
   var json = indeed.proctor.forms.toJSON(jsoninputs);
+
+  console.log('json');
+  console.log(json);
 
   if (!json['constants']) {
     json['constants'] = {};
